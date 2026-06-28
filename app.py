@@ -28,6 +28,24 @@ if "detected_location" not in st.session_state:
 st.sidebar.success(f"Captured Target Region:\n**{st.session_state.detected_location}**")
 
 # ============================================================================
+# GOOGLE API KEY MANAGEMENT PERIMETER
+# ============================================================================
+st.sidebar.header("🔑 Authentication Gateway")
+api_key = os.getenv("GOOGLE_API_KEY")
+
+if not api_key:
+    api_key = st.sidebar.text_input(
+        "Enter Google API Key",
+        type="password",
+        help="Required to clear and execute cloud-backed agent pipelines when local channels are offline."
+    )
+    if api_key:
+        os.environ["GOOGLE_API_KEY"] = api_key
+        st.sidebar.success("Key injected into active session runtime.")
+else:
+    st.sidebar.success("Authenticated via system environment variables.")
+
+# ============================================================================
 # STATE INITIALIZATION & REFRESH LOGIC (Clears old responses automatically)
 # ============================================================================
 if "pathology_results" not in st.session_state:
@@ -59,7 +77,9 @@ with col1:
 
 # Execution Trigger
 if st.button("Launch Multi-Agent Deep Execution", type="primary"):
-    if not user_text and not uploaded_image:
+    if not os.getenv("GOOGLE_API_KEY"):
+        st.error("❌ Critical Engine Error: Both Cloud ADK and Local Fallback channels are offline. Please input a valid Google API key in the sidebar to authenticate infrastructure pipelines.")
+    elif not user_text and not uploaded_image:
         st.warning("Please provide a text description or upload a sample image to begin.")
     else:
         try:
