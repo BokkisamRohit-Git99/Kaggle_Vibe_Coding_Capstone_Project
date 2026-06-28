@@ -11,16 +11,26 @@ class LLMGateway:
     If Google AI Studio keys fail, requests fallback seamlessly to local Ollama nodes.
     """
     def __init__(self):
-        self.api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        # DO NOT cache the key as a static property here anymore.
+        pass
         
     def generate_response(self, agent_instance: Agent, prompt: str, **kwargs) -> str:
         """
         Accepts dynamic execution parameters (like image payload data buffers).
         """
+        # DYNAMIC LOOKUP: Fetch the key at execution time to grab the user's frontend input
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        
+        # Sanitize ghost strings or empty strings committed to git templates
+        if api_key:
+            api_key = api_key.strip()
+            if api_key in ["", "google_api_key", "YOUR_API_KEY", "YOUR_API_KEY_HERE"]:
+                api_key = None
+
         # Capture optional image bytes sent from multimodal channels
         uploaded_image = kwargs.get("image", None)
 
-        if self.api_key:
+        if api_key:
             try:
                 runner = InMemoryRunner(agent=agent_instance, app_name="agri_health_gateway")
                 
@@ -68,8 +78,12 @@ class LLMGateway:
             return self._fallback_to_ollama(prompt)
 
     def _fallback_to_ollama(self, prompt: str) -> str:
-        # Note: Standard Ollama generation endpoint handles text-fallback processing
-        url = "http://localhost:11434/api/generate"
+        # Resolve network paths contextually based on the hosting cloud environment
+        if os.getenv("STREAMLIT_RUNTIME_ENV") == "cloud":
+            url = os.getenv("REMOTE_OLLAMA_ENDPOINT", "http://coop-edge-node.local:11434/api/generate")
+        else:
+            url = "http://localhost:11434/api/generate"
+            
         payload = {"model": "gemma4", "prompt": prompt, "stream": False}
         try:
             response = httpx.post(url, json=payload, timeout=30.0)
