@@ -33,7 +33,8 @@ st.sidebar.success(f"Captured Target Region:\n**{st.session_state.detected_locat
 st.sidebar.header("🔑 Authentication Gateway")
 api_key = os.getenv("GOOGLE_API_KEY")
 
-if not api_key:
+# Check if the key is missing, empty, or just a placeholder name from .env.example
+if not api_key or api_key.strip() in ["", "google_api_key", "YOUR_API_KEY"]:
     api_key = st.sidebar.text_input(
         "Enter Google API Key",
         type="password",
